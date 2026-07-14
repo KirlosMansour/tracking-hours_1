@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Hours EAC Tracker</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <h1>📊 Project Hours EAC Tracker</h1>
+  </div>
+  <div class="topbar-right">
+    <button id="btnDashboard" class="nav-btn active">Dashboard</button>
+    <button id="btnAddProject" class="btn primary">+ Add Project</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="btnExportExcel" class="btn">⬇ Export Excel</button>
+  <button id="btnExportPdf" class="btn">⬇ Export PDF</button>
+  <button id="btnExportJson" class="btn">⬇ Export JSON</button>
+  <label class="btn file-btn">
+    ⬆ Import JSON
+    <input type="file" id="fileImport" accept="application/json" hidden>
+  </label>
+  <button id="btnReset" class="btn danger">⟲ Reset All Data</button>
+  <button id="btnGlossary" class="btn" style="margin-left:auto;">❓ Glossary / Help</button>
+</div>
+
+<main id="app">
+
+  <!-- ============ DASHBOARD VIEW ============ -->
+  <section id="dashboardView" class="view">
+    <h2>All Projects</h2>
+    <div class="table-wrap">
+      <table id="dashboardTable">
+        <thead>
+          <tr>
+            <th>Project Name</th>
+            <th>Total Planned Hours</th>
+            <th>Total Actual Hours</th>
+            <th>Percent Complete</th>
+            <th>Total EAC</th>
+            <th>Variance</th>
+            <th>Status</th>
+            <th>Open</th>
+          </tr>
+        </thead>
+        <tbody id="dashboardBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ PROJECT DETAIL VIEW ============ -->
+  <section id="projectView" class="view hidden">
+    <div class="project-header">
+      <button id="btnBack" class="btn">← Back to Dashboard</button>
+      <div class="project-title-wrap">
+        <input id="projectNameInput" class="project-title-input" />
+      </div>
+      <button id="btnDeleteProject" class="btn danger small">🗑 Delete Project</button>
+    </div>
+
+    <div class="project-actions">
+      <button id="btnAddRow" class="btn small">+ Add Row</button>
+    </div>
+
+    <div class="summary-cards" id="summaryCards"></div>
+
+    <h3 class="section-label">Status by Stage</h3>
+    <div class="stage-status-row" id="stageStatusRow"></div>
+
+    <div class="table-wrap">
+      <table id="phasesTable">
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th>Task</th>
+            <th>Planned Hours<br><span class="sub">(BAC)</span></th>
+            <th>Actual Hours<br><span class="sub">(AC)</span></th>
+            <th>% Complete</th>
+            <th>ETC</th>
+            <th>Earned Hours<br><span class="sub">(EV)</span></th>
+            <th>CPI</th>
+            <th>EAC<br><span class="sub">Method 1</span></th>
+            <th>EAC<br><span class="sub">Method 2</span></th>
+            <th>EAC<br><span class="sub">Method 3</span></th>
+            <th>Variance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="phasesBody"></tbody>
+      </table>
+    </div>
+
+    <div class="notes-wrap">
+      <label for="notesArea"><strong>Notes</strong></label>
+      <textarea id="notesArea" placeholder="Add notes about this project..."></textarea>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- ============ GLOSSARY / HELP MODAL ============ -->
+<div id="glossaryModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📖 Glossary &amp; How EAC Works</h2>
+      <button class="modal-close" id="closeGlossary">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <h3>Terms &amp; Equations</h3>
+      <dl class="glossary-list">
+
+        <dt>BAC — Planned Hours (Budget at Completion)</dt>
+        <dd>The total hours that were originally planned/budgeted for that line item before work started. This is your fixed baseline — it does not change as the project progresses.</dd>
+        <dd class="eq">📥 <strong>Manual entry</strong> — no formula. Set once at the start.</dd>
+
+        <dt>AC — Actual Hours</dt>
+        <dd>The real hours that have actually been spent on that line item so far. Updated continuously as work happens.</dd>
+        <dd class="eq">📥 <strong>Manual entry</strong> — updated regularly as hours are logged.</dd>
+
+        <dt>% Complete</dt>
+        <dd>Your honest estimate of how much of that line item's work is actually finished. This is a judgement call — it should reflect true progress, not just time elapsed.</dd>
+        <dd class="eq">📥 <strong>Manual entry</strong> — value between 0 and 100.</dd>
+
+        <dt>ETC — Estimate to Complete</dt>
+        <dd>A fresh, hands-on estimate of how many hours are still needed to finish the remaining work, given directly by whoever is doing the work. Optional — if you leave it blank the app calculates EAC using Method 1 or 2 instead.</dd>
+        <dd class="eq">📥 <strong>Manual entry (optional)</strong> — provided by the team based on current knowledge.</dd>
+
+        <dt>EV — Earned Hours (Earned Value)</dt>
+        <dd>The portion of the planned hours that your progress actually represents. It answers "how many hours worth of work have we actually completed?" — which is different from how many hours we've spent.</dd>
+        <dd class="eq"><span class="formula">EV = BAC × (% Complete ÷ 100)</span><br>
+        <span class="formula-ex">Example: BAC = 400 hrs, 50% complete → EV = 400 × 0.50 = <strong>200 hrs</strong></span></dd>
+
+        <dt>CPI — Cost Performance Index</dt>
+        <dd>An efficiency ratio — are you getting a full hour of progress for every hour spent? CPI above 1 means you're ahead of plan; below 1 means it's costing more hours than expected. If no actual hours have been logged yet, CPI shows N/A.</dd>
+        <dd class="eq"><span class="formula">CPI = EV ÷ AC</span><br>
+        <span class="formula-ex">Example: EV = 200 hrs, AC = 250 hrs → CPI = 200 ÷ 250 = <strong>0.80</strong> (20% less efficient than planned)</span></dd>
+
+        <dt>EAC — Estimate at Completion</dt>
+        <dd>The projected total hours that line item will take once it's fully finished — combining the hours already spent with a forecast of what's still needed. Calculated three different ways depending on what assumption you want to make (see methods below).</dd>
+
+        <dt>Variance</dt>
+        <dd>How far off the project is projected to finish compared to the original budget. Positive = over budget; zero or negative = on or under budget. Calculated using whichever EAC method the app selects for that row.</dd>
+        <dd class="eq"><span class="formula">Variance = EAC − BAC</span><br>
+        <span class="formula-ex">Example: EAC = 420 hrs, BAC = 400 hrs → Variance = 420 − 400 = <strong>+20 hrs over budget</strong></span></dd>
+
+        <dt>Overall % Complete (Summary card)</dt>
+        <dd>The project-level percent complete — weighted by planned hours so larger tasks have more impact on the number than smaller ones.</dd>
+        <dd class="eq"><span class="formula">Overall % Complete = Total EV ÷ Total BAC × 100</span><br>
+        <span class="formula-ex">Example: Total EV = 1094 hrs, Total BAC = 3401 hrs → 1094 ÷ 3401 × 100 = <strong>32.2%</strong></span></dd>
+
+        <dt>Overall CPI (Summary card)</dt>
+        <dd>The project-level efficiency ratio — same idea as row-level CPI but computed from the totals across all rows.</dd>
+        <dd class="eq"><span class="formula">Overall CPI = Total EV ÷ Total AC</span><br>
+        <span class="formula-ex">Example: Total EV = 1094, Total AC = 709 → 1094 ÷ 709 = <strong>1.54</strong></span></dd>
+
+        <dt>Total EAC (Summary card)</dt>
+        <dd>The sum of each row's own EAC (whichever method was used for that row). This is <em>not</em> simply BAC ÷ Overall CPI — it's a row-by-row total, since different rows may use different EAC methods.</dd>
+        <dd class="eq"><span class="formula">Total EAC = Σ EAC(used) for every row</span></dd>
+
+      </dl>
+
+      <h3>The three EAC methods</h3>
+      <div class="method-explain">
+        <div class="method-card">
+          <div class="method-title">Method 1 — "If we keep going at this pace"</div>
+          <p>Assumes your current efficiency (CPI) will continue for the rest of the task. Use when slow or fast progress so far reflects a real, ongoing pattern — not a one-time fluke.</p>
+          <div class="method-eq"><span class="formula">EAC₁ = BAC ÷ CPI</span><br>
+          <span class="formula-ex">Example: BAC = 400, CPI = 0.80 → EAC₁ = 400 ÷ 0.80 = <strong>500 hrs</strong></span></div>
+        </div>
+        <div class="method-card">
+          <div class="method-title">Method 2 — "Assume it was a one-time hiccup"</div>
+          <p>Assumes whatever caused the variance so far is behind you, and the rest of the work will go exactly as originally planned from here on. Use when the issue has been fixed and won't repeat.</p>
+          <div class="method-eq"><span class="formula">EAC₂ = AC + (BAC − EV)</span><br>
+          <span class="formula-ex">Example: AC = 250, BAC = 400, EV = 200 → EAC₂ = 250 + (400 − 200) = <strong>450 hrs</strong></span></div>
+        </div>
+        <div class="method-card">
+          <div class="method-title">Method 3 — "Ask the team directly"</div>
+          <p>Instead of relying on a trend or formula, someone close to the work gives a fresh bottom-up estimate of hours remaining (ETC). Usually the most accurate when good first-hand judgment is available.</p>
+          <div class="method-eq"><span class="formula">EAC₃ = AC + ETC</span><br>
+          <span class="formula-ex">Example: AC = 250, ETC = 180 (team's estimate) → EAC₃ = 250 + 180 = <strong>430 hrs</strong></span></div>
+        </div>
+      </div>
+      <p class="method-note">
+        <strong>Which method does the app use?</strong><br>
+        If ETC is entered → Method 3 is used (human re-estimate takes priority).<br>
+        If ETC is blank but AC &gt; 0 → Method 1 is used (trend-based).<br>
+        If both ETC is blank and AC = 0 → Method 2 is used (original plan as fallback).
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PROJECT PICKER MODAL ============ -->
+<div id="pickerModal" class="modal-overlay hidden">
+  <div class="modal modal-small">
+    <div class="modal-header">
+      <h2 id="pickerTitle">Select Projects</h2>
+      <button class="modal-close" id="closePicker">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="picker-controls">
+        <button class="btn small" id="pickerSelectAll">Select All</button>
+        <button class="btn small" id="pickerSelectNone">Clear</button>
+      </div>
+      <div id="pickerList" class="picker-list"></div>
+      <button id="btnPickerConfirm" class="btn primary" style="margin-top:16px;width:100%;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD ROW MODAL ============ -->
+<div id="addRowModal" class="modal-overlay hidden">
+  <div class="modal modal-small">
+    <div class="modal-header">
+      <h2>+ Add Row</h2>
+      <button class="modal-close" id="closeAddRow">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="newRowTask">Task name</label>
+      <input type="text" id="newRowTask" placeholder="e.g. Cable Schedule" class="modal-input">
+
+      <label class="field-label" for="newRowGroup">Assign to phase</label>
+      <select id="newRowGroup" class="modal-input"></select>
+
+      <button id="btnConfirmAddRow" class="btn primary" style="margin-top:14px;">Add Row</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
