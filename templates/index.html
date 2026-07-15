@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Hours EAC Tracker</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <h1>📊 Project Hours EAC Tracker</h1>
+  </div>
+  <div class="topbar-right">
+    <button id="btnDashboard" class="nav-btn active">Dashboard</button>
+    <button id="btnTimeLog"   class="nav-btn">⏱ Time Log</button>
+    <button id="btnAddProject" class="btn primary">+ Add Project</button>
+  </div>
+</header>
+
+<!-- storage status indicator -->
+<div id="storageBanner" class="storage-banner hidden"></div>
+
+<div class="toolbar">
+  <button id="btnExportExcel"      class="btn">⬇ Export Excel</button>
+  <button id="btnExportProjectPdf" class="btn">⬇ Project PDF</button>
+  <button id="btnExportTimeLogPdf" class="btn">⬇ Time Log PDF</button>
+  <button id="btnExportJson"       class="btn">⬇ Export JSON</button>
+  <label class="btn file-btn">
+    ⬆ Import JSON
+    <input type="file" id="fileImport" accept="application/json" hidden>
+  </label>
+  <button id="btnReset" class="btn danger">⟲ Reset All Data</button>
+  <button id="btnGlossary" class="btn" style="margin-left:auto;">❓ Glossary / Help</button>
+</div>
+
+<main id="app">
+
+  <!-- ============ DASHBOARD VIEW ============ -->
+  <section id="dashboardView" class="view">
+    <h2>All Projects</h2>
+    <div class="table-wrap">
+      <table id="dashboardTable">
+        <thead>
+          <tr>
+            <th>Project Name</th>
+            <th>Total Planned Hours</th>
+            <th>Total Actual Hours</th>
+            <th>Percent Complete</th>
+            <th>Total EAC</th>
+            <th>Variance</th>
+            <th>Status</th>
+            <th>Open</th>
+          </tr>
+        </thead>
+        <tbody id="dashboardBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ PROJECT DETAIL VIEW ============ -->
+  <section id="projectView" class="view hidden">
+    <div class="project-header">
+      <button id="btnBack" class="btn">← Back to Dashboard</button>
+      <div class="project-title-wrap">
+        <input id="projectNameInput" class="project-title-input" />
+      </div>
+      <button id="btnDeleteProject" class="btn danger small">🗑 Delete Project</button>
+    </div>
+
+    <div class="project-actions">
+      <button id="btnAddRow" class="btn small">+ Add Row</button>
+    </div>
+
+    <div class="summary-cards" id="summaryCards"></div>
+
+    <h3 class="section-label">Status by Stage</h3>
+    <div class="stage-status-row" id="stageStatusRow"></div>
+
+    <div class="table-wrap">
+      <table id="phasesTable">
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th>Task</th>
+            <th>Planned Hours<br><span class="sub">(BAC)</span></th>
+            <th>Actual Hours<br><span class="sub">(AC)</span></th>
+            <th>% Complete</th>
+            <th>ETC</th>
+            <th>Earned Hours<br><span class="sub">(EV)</span></th>
+            <th>CPI</th>
+            <th>EAC<br><span class="sub">Method 1</span></th>
+            <th>EAC<br><span class="sub">Method 2</span></th>
+            <th>EAC<br><span class="sub">Method 3</span></th>
+            <th>Variance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="phasesBody"></tbody>
+      </table>
+    </div>
+
+    <div class="notes-wrap">
+      <label for="notesArea"><strong>Notes</strong></label>
+      <textarea id="notesArea" placeholder="Add notes about this project..."></textarea>
+    </div>
+  </section>
+
+  <!-- ============ TIME LOG VIEW ============ -->
+  <section id="timeLogView" class="view hidden">
+    <div class="tl-layout">
+
+      <!-- Left: Log entry form -->
+      <div class="tl-form-panel">
+        <h2>Log Hours</h2>
+
+        <div class="tl-form">
+          <div class="tl-row">
+            <div class="tl-field">
+              <label>Team Member</label>
+              <select id="tlMember" class="tl-input"></select>
+            </div>
+            <div class="tl-field">
+              <label>Date</label>
+              <input type="date" id="tlDate" class="tl-input">
+            </div>
+            <div class="tl-field tl-field-sm">
+              <label>Hours</label>
+              <input type="number" id="tlHours" class="tl-input" min="0.5" step="0.5" placeholder="e.g. 8">
+            </div>
+          </div>
+
+          <div class="tl-row">
+            <div class="tl-field">
+              <label>Project</label>
+              <select id="tlProject" class="tl-input"></select>
+            </div>
+            <div class="tl-field">
+              <label>Design Stage</label>
+              <select id="tlStage" class="tl-input"></select>
+            </div>
+            <div class="tl-field">
+              <label>Type</label>
+              <select id="tlType" class="tl-input"></select>
+            </div>
+          </div>
+
+          <button id="btnAddLog" class="btn primary tl-submit">+ Add Hours</button>
+        </div>
+
+        <!-- Team member list -->
+        <div class="team-list-wrap">
+          <h3>Engineering Team</h3>
+          <div id="teamMemberList" class="team-member-list"></div>
+        </div>
+      </div>
+
+      <!-- Right: Log history -->
+      <div class="tl-history-panel">
+        <div class="tl-history-header">
+          <h2>Hours Log History</h2>
+          <div class="tl-header-controls">
+            <button id="btnSyncToggle" class="btn small sync-toggle sync-on" title="When ON: deleting a log entry also subtracts those hours from the project's Actual Hours">
+              🔗 Sync Delete: ON
+            </button>
+            <div class="tl-filter-row">
+            <select id="tlFilterMember" class="tl-input-sm">
+              <option value="">All Members</option>
+            </select>
+            <select id="tlFilterProject" class="tl-input-sm">
+              <option value="">All Projects</option>
+            </select>
+            <button id="btnClearFilter" class="btn small">Clear Filters</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="timeLogTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Member</th>
+                <th>Hours</th>
+                <th>Project</th>
+                <th>Stage</th>
+                <th>Type</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="timeLogBody"></tbody>
+          </table>
+        </div>
+        <div id="tlTotalsRow" class="tl-totals"></div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- ============ GLOSSARY / HELP MODAL ============ -->
+<div id="glossaryModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📖 Glossary &amp; How EAC Works</h2>
+      <button class="modal-close" id="closeGlossary">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <h3>Terms &amp; Equations</h3>
+      <dl class="glossary-list">
+        <dt>BAC — Planned Hours (Budget at Completion)</dt>
+        <dd>The total hours that were originally planned/budgeted for that line item before work started. This is your fixed baseline — it does not change as the project progresses.</dd>
+        <dd class="eq">📥 <strong>Manual entry</strong> — no formula. Set once at the start.</dd>
+
+        <dt>AC — Actual Hours</dt>
+        <dd>The real hours that have actually been spent on that line item so far. Updated continuously as work happens — either manually or via the Time Log.</dd>
+        <dd class="eq">📥 <strong>Manual entry or Time Log</strong> — updated regularly as hours are logged.</dd>
+
+        <dt>% Complete</dt>
+        <dd>Your honest estimate of how much of that line item's work is actually finished. This is a judgement call — it should reflect true progress, not just time elapsed.</dd>
+        <dd class="eq">📥 <strong>Manual entry</strong> — value between 0 and 100.</dd>
+
+        <dt>ETC — Estimate to Complete</dt>
+        <dd>A fresh, hands-on estimate of how many hours are still needed to finish the remaining work, given directly by whoever is doing the work. Optional — if you leave it blank the app calculates EAC using Method 1 or 2 instead.</dd>
+        <dd class="eq">📥 <strong>Manual entry (optional)</strong> — provided by the team based on current knowledge.</dd>
+
+        <dt>EV — Earned Hours (Earned Value)</dt>
+        <dd>The portion of the planned hours that your progress actually represents.</dd>
+        <dd class="eq"><span class="formula">EV = BAC × (% Complete ÷ 100)</span><br>
+        <span class="formula-ex">Example: BAC = 400 hrs, 50% complete → EV = 400 × 0.50 = <strong>200 hrs</strong></span></dd>
+
+        <dt>CPI — Cost Performance Index</dt>
+        <dd>An efficiency ratio — are you getting a full hour of progress for every hour spent?</dd>
+        <dd class="eq"><span class="formula">CPI = EV ÷ AC</span><br>
+        <span class="formula-ex">Example: EV = 200 hrs, AC = 250 hrs → CPI = 200 ÷ 250 = <strong>0.80</strong></span></dd>
+
+        <dt>EAC — Estimate at Completion</dt>
+        <dd>The projected total hours that line item will take once fully finished. Calculated three ways depending on your assumption.</dd>
+
+        <dt>Variance</dt>
+        <dd>How far off the project is projected to finish versus the original budget.</dd>
+        <dd class="eq"><span class="formula">Variance = EAC − BAC</span><br>
+        <span class="formula-ex">Example: EAC = 420 hrs, BAC = 400 hrs → Variance = <strong>+20 hrs over budget</strong></span></dd>
+
+        <dt>Overall % Complete (Summary card)</dt>
+        <dd class="eq"><span class="formula">Overall % Complete = Total EV ÷ Total BAC × 100</span></dd>
+
+        <dt>Overall CPI (Summary card)</dt>
+        <dd class="eq"><span class="formula">Overall CPI = Total EV ÷ Total AC</span></dd>
+
+        <dt>Total EAC (Summary card)</dt>
+        <dd class="eq"><span class="formula">Total EAC = Σ EAC(used) for every row</span></dd>
+      </dl>
+
+      <h3>The three EAC methods</h3>
+      <div class="method-explain">
+        <div class="method-card">
+          <div class="method-title">Method 1 — "If we keep going at this pace"</div>
+          <p>Assumes your current efficiency (CPI) will continue for the rest of the task.</p>
+          <div class="method-eq"><span class="formula">EAC₁ = BAC ÷ CPI</span><br>
+          <span class="formula-ex">Example: BAC = 400, CPI = 0.80 → EAC₁ = 400 ÷ 0.80 = <strong>500 hrs</strong></span></div>
+        </div>
+        <div class="method-card">
+          <div class="method-title">Method 2 — "Assume it was a one-time hiccup"</div>
+          <p>Assumes the rest of the work will go exactly as originally planned.</p>
+          <div class="method-eq"><span class="formula">EAC₂ = AC + (BAC − EV)</span><br>
+          <span class="formula-ex">Example: AC = 250, BAC = 400, EV = 200 → EAC₂ = <strong>450 hrs</strong></span></div>
+        </div>
+        <div class="method-card">
+          <div class="method-title">Method 3 — "Ask the team directly"</div>
+          <p>Uses a fresh bottom-up estimate of hours remaining (ETC) provided by the team.</p>
+          <div class="method-eq"><span class="formula">EAC₃ = AC + ETC</span><br>
+          <span class="formula-ex">Example: AC = 250, ETC = 180 → EAC₃ = <strong>430 hrs</strong></span></div>
+        </div>
+      </div>
+      <p class="method-note">
+        <strong>Which method does the app use?</strong><br>
+        If ETC is entered → Method 3. If ETC blank &amp; AC &gt; 0 → Method 1. If both blank → Method 2.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PROJECT PICKER MODAL ============ -->
+<div id="pickerModal" class="modal-overlay hidden">
+  <div class="modal modal-small">
+    <div class="modal-header">
+      <h2 id="pickerTitle">Select Projects</h2>
+      <button class="modal-close" id="closePicker">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="picker-controls">
+        <button class="btn small" id="pickerSelectAll">Select All</button>
+        <button class="btn small" id="pickerSelectNone">Clear</button>
+      </div>
+      <div id="pickerList" class="picker-list"></div>
+      <button id="btnPickerConfirm" class="btn primary" style="margin-top:16px;width:100%;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD ROW MODAL ============ -->
+<div id="addRowModal" class="modal-overlay hidden">
+  <div class="modal modal-small">
+    <div class="modal-header">
+      <h2>+ Add Row</h2>
+      <button class="modal-close" id="closeAddRow">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="newRowTask">Task name</label>
+      <input type="text" id="newRowTask" placeholder="e.g. Cable Schedule" class="modal-input">
+
+      <label class="field-label" for="newRowGroup">Assign to phase</label>
+      <select id="newRowGroup" class="modal-input"></select>
+
+      <button id="btnConfirmAddRow" class="btn primary" style="margin-top:14px;">Add Row</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
